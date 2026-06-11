@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - rbac.yaml
+  - patch-job.yaml
+
+secretGenerator:
+  - name: openai-credentials
+    envs:
+      - openai.env
+
+generatorOptions:
+  disableNameSuffixHash: true

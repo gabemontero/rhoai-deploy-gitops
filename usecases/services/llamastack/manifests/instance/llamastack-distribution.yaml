@@ -96,6 +96,11 @@ spec:
           value: https://guardrails-orchestrator-service.llamastack.svc.cluster.local:8032
         - name: FMS_VERIFY_SSL
           value: "false"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llama-stack-secret
+              key: OPENAI_API_KEY
         - name: GEMINI_API_KEY
           valueFrom:
             secretKeyRef:

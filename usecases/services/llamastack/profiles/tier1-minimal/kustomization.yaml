@@ -14,3 +14,4 @@ resources:
   - ../../manifests/embedding
   - ../../manifests/guardrails
   - ../../manifests/instance
+  - ../../manifests/openai-credentials
