@@ -60,7 +60,17 @@ if [ "$route_created" = false ]; then
 fi
 
 echo ""
-echo "=== Deployment complete ==="
+echo "=== RHOAI + LlamaStack deployment complete ==="
 ROUTE_HOST=$(oc get route llamastack -n llamastack -o jsonpath='{.spec.host}')
 echo "LlamaStack route: https://${ROUTE_HOST}"
 echo "In-cluster URL:   http://llamastack-service.llamastack.svc.cluster.local:8321"
+
+echo ""
+echo "=== Phase 4: Kagenti agent namespace LLM config ==="
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if oc get namespace kagenti-system &>/dev/null; then
+  "${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
+else
+  echo "kagenti-system namespace not found — skipping kagenti LLM config."
+  echo "Run deploy-kagenti-llm-config.sh after installing kagenti."
+fi
