@@ -38,6 +38,29 @@ echo "Waiting for patch-openai-credentials job to complete..."
 oc wait --for=condition=complete job/patch-openai-credentials -n llamastack --timeout=600s
 
 echo ""
+echo "Waiting for LlamaStack deployment to be available..."
+oc wait --for=condition=available deployment/llamastack -n llamastack --timeout=300s
+echo "LlamaStack deployment ready."
+
+echo ""
+echo "Waiting for operator to create route (up to 2 minutes)..."
+route_created=false
+for i in $(seq 1 12); do
+  if oc get route llamastack -n llamastack &>/dev/null; then
+    route_created=true
+    break
+  fi
+  echo "  attempt $i/12 — no route yet, waiting 10s..."
+  sleep 10
+done
+
+if [ "$route_created" = false ]; then
+  echo "Operator did not create route — creating it manually."
+  oc create route edge llamastack --service=llamastack-service --port=8321 -n llamastack
+fi
+
+echo ""
 echo "=== Deployment complete ==="
-echo "LlamaStack endpoint:"
-oc get route llamastack -n llamastack -o jsonpath='{.spec.host}' 2>/dev/null && echo "" || echo "  (route not yet available — check: oc get route -n llamastack)"
+ROUTE_HOST=$(oc get route llamastack -n llamastack -o jsonpath='{.spec.host}')
+echo "LlamaStack route: https://${ROUTE_HOST}"
+echo "In-cluster URL:   http://llamastack-service.llamastack.svc.cluster.local:8321"
