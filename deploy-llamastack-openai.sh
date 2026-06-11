@@ -31,7 +31,7 @@ echo "DSC ready."
 
 echo ""
 echo "=== Phase 3: LlamaStack instance (pointed at OpenAI) ==="
-oc apply -k usecases/services/llamastack/profiles/tier1-minimal/
+oc apply -k usecases/services/llamastack/profiles/openai-only/
 
 echo ""
 echo "Waiting for patch-openai-credentials job to complete..."
