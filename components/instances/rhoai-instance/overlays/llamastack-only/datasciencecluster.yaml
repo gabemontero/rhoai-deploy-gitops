@@ -23,9 +23,7 @@ spec:
         managementState: Removed
       rawDeploymentServiceConfig: Headless
     kueue:
-      defaultClusterQueueName: default
-      defaultLocalQueueName: default
-      managementState: Unmanaged
+      managementState: Removed
     llamastackoperator:
       managementState: Managed
     mlflowoperator:
