@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Configuring kagenti agent namespaces with LlamaStack LLM config ==="
+echo "=== Configuring kagenti agent namespaces ==="
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KAGENTI_PROFILES="${SCRIPT_DIR}/usecases/services/kagenti/profiles"
@@ -15,12 +15,21 @@ fi
 
 for team in team1 team2; do
   echo ""
-  echo "--- Applying LLM config to namespace: ${team} ---"
+  echo "--- Applying to namespace: ${team} ---"
   oc apply -k "${KAGENTI_PROFILES}/${team}/"
 done
 
 echo ""
-echo "=== Kagenti LLM config complete ==="
-echo "Agents in team1/team2 can now use:"
-echo "  ConfigMap 'llamastack-env' — LLM_API_BASE + LLM_MODEL"
-echo "  Secret 'openai-secret'     — apikey"
+echo "Waiting for deployments to be available..."
+for team in team1 team2; do
+  oc wait --for=condition=available deployment/weather-tool -n "${team}" --timeout=120s 2>/dev/null || echo "  weather-tool in ${team}: not ready yet"
+  oc wait --for=condition=available deployment/a2a-currency-converter -n "${team}" --timeout=120s 2>/dev/null || echo "  currency-converter in ${team}: not ready yet"
+done
+
+echo ""
+echo "=== Kagenti config complete ==="
+echo "Per namespace (team1, team2):"
+echo "  ConfigMap  'llamastack-env'         — LLM_API_BASE + LLM_MODEL"
+echo "  Secret     'openai-secret'          — apikey"
+echo "  Tool       'weather-tool-mcp'       — MCP weather tool (port 8000)"
+echo "  Agent      'a2a-currency-converter' — LangGraph currency agent (port 8080)"

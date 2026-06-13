@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: weather-tool
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-tool-mcp
+  labels:
+    kagenti.io/type: tool
+    protocol.kagenti.io/mcp: ""
+    kagenti.io/transport: streamable_http
+    kagenti.io/framework: Python
+    kagenti.io/workload-type: deployment
+    app.kubernetes.io/name: weather-tool
+    app.kubernetes.io/component: tool
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: weather-tool
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-tool
+  labels:
+    kagenti.io/type: tool
+    protocol.kagenti.io/mcp: ""
+    kagenti.io/transport: streamable_http
+    kagenti.io/framework: Python
+    kagenti.io/workload-type: deployment
+    kagenti.io/inject: disabled
+    app.kubernetes.io/name: weather-tool
+    app.kubernetes.io/component: tool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: weather-tool
+  template:
+    metadata:
+      labels:
+        kagenti.io/type: tool
+        protocol.kagenti.io/mcp: ""
+        kagenti.io/transport: streamable_http
+        kagenti.io/framework: Python
+        kagenti.io/workload-type: deployment
+        kagenti.io/inject: disabled
+        app.kubernetes.io/name: weather-tool
+        app.kubernetes.io/component: tool
+    spec:
+      serviceAccountName: weather-tool
+      containers:
+        - name: weather-tool
+          image: ghcr.io/kagenti/agent-examples/weather_tool:v0.1.0-alpha.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.kagenti-system.svc.cluster.local:8335
+            - name: KEYCLOAK_URL
+              value: http://keycloak-service.keycloak.svc.cluster.local:8080
+            - name: UV_CACHE_DIR
+              value: /app/.cache/uv
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: cache
+              mountPath: /app/.cache
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

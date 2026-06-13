@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a2a-currency-converter
+spec:
+  template:
+    spec:
+      containers:
+        - name: a2a-currency-converter
+          env:
+            - name: AGENT_ENDPOINT
+              value: http://a2a-currency-converter.team1.svc.cluster.local:8080/

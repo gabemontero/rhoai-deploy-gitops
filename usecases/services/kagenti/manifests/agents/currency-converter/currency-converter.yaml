@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: a2a-currency-converter
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: a2a-currency-converter
+  labels:
+    kagenti.io/type: agent
+    protocol.kagenti.io/a2a: ""
+    kagenti.io/framework: LangGraph
+    kagenti.io/workload-type: deployment
+    app.kubernetes.io/name: a2a-currency-converter
+    app.kubernetes.io/component: agent
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: a2a-currency-converter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a2a-currency-converter
+  labels:
+    kagenti.io/type: agent
+    protocol.kagenti.io/a2a: ""
+    kagenti.io/framework: LangGraph
+    kagenti.io/workload-type: deployment
+    app.kubernetes.io/name: a2a-currency-converter
+    app.kubernetes.io/component: agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: a2a-currency-converter
+  template:
+    metadata:
+      labels:
+        kagenti.io/type: agent
+        protocol.kagenti.io/a2a: ""
+        kagenti.io/framework: LangGraph
+        kagenti.io/workload-type: deployment
+        app.kubernetes.io/name: a2a-currency-converter
+        app.kubernetes.io/component: agent
+    spec:
+      serviceAccountName: a2a-currency-converter
+      containers:
+        - name: a2a-currency-converter
+          image: ghcr.io/kagenti/agent-examples/a2a_currency_converter:v0.1.0-alpha.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: AGENT_ENDPOINT
+              value: PLACEHOLDER
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.kagenti-system.svc.cluster.local:8335
+            - name: KEYCLOAK_URL
+              value: http://keycloak-service.keycloak.svc.cluster.local:8080
+            - name: LLM_API_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: llamastack-env
+                  key: LLM_API_BASE
+            - name: LLM_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: llamastack-env
+                  key: LLM_MODEL
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: apikey
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: apikey
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: cache
+              mountPath: /app/.cache
+      volumes:
+        - name: cache
+          emptyDir: {}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
