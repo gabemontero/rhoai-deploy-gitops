@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-consumer-namespaces
+spec:
+  podSelector:
+    matchLabels:
+      app: llama-stack
+      app.kubernetes.io/instance: llamastack
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: rolling-demo-ns
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: team1
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: team2
+      ports:
+        - port: 8321
+          protocol: TCP

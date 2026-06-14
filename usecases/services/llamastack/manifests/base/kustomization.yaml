@@ -9,3 +9,4 @@ labels:
 
 resources:
   - namespace.yaml
+  - allow-ingress.yaml
