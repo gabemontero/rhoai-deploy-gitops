@@ -88,6 +88,16 @@ spec:
                 secretKeyRef:
                   name: openai-secret
                   key: apikey
+            - name: UV_CACHE_DIR
+              value: /app/.cache/uv
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
           readinessProbe:
             tcpSocket:
               port: 8000
@@ -104,8 +114,12 @@ spec:
           volumeMounts:
             - name: cache
               mountPath: /app/.cache
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: cache
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
       dnsPolicy: ClusterFirst
       restartPolicy: Always
