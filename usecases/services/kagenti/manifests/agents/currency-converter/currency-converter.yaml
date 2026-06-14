@@ -18,7 +18,7 @@ spec:
   type: ClusterIP
   ports:
     - port: 8080
-      targetPort: 8000
+      targetPort: 8001
       protocol: TCP
       name: http
   selector:
@@ -56,10 +56,10 @@ spec:
           image: ghcr.io/kagenti/agent-examples/a2a_currency_converter:v0.1.0-alpha.1
           imagePullPolicy: Always
           ports:
-            - containerPort: 8000
+            - containerPort: 8001
           env:
             - name: PORT
-              value: "8000"
+              value: "8001"
             - name: HOST
               value: "0.0.0.0"
             - name: AGENT_ENDPOINT
@@ -100,7 +100,7 @@ spec:
               type: RuntimeDefault
           readinessProbe:
             tcpSocket:
-              port: 8000
+              port: 8001
             initialDelaySeconds: 5
             periodSeconds: 5
             failureThreshold: 12
