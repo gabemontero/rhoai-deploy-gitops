@@ -110,3 +110,8 @@ spec:
       size: 5Gi
   network:
     exposeRoute: true
+    allowedFrom:
+      namespaces:
+        - rolling-demo-ns
+        - team1
+        - team2
