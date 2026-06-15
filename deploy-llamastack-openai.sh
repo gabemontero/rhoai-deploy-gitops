@@ -66,8 +66,12 @@ echo "LlamaStack route: https://${ROUTE_HOST}"
 echo "In-cluster URL:   http://llamastack-service.llamastack.svc.cluster.local:8321"
 
 echo ""
-echo "=== Phase 4: Kagenti agent namespace LLM config ==="
+echo "=== Phase 4: Register MCP tools in LlamaStack ==="
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${SCRIPT_DIR}/register-llamastack-tools.sh"
+
+echo ""
+echo "=== Phase 5: Kagenti agent namespace LLM config ==="
 if oc get namespace kagenti-system &>/dev/null; then
   "${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
 else
