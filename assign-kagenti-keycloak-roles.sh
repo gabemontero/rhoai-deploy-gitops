@@ -17,25 +17,55 @@ echo "Apps domain: ${APPS_DOMAIN}"
 ADMIN_USER=$(oc get secret keycloak-initial-admin -n "${KEYCLOAK_NS}" -o jsonpath='{.data.username}' | base64 -d)
 ADMIN_PASS=$(oc get secret keycloak-initial-admin -n "${KEYCLOAK_NS}" -o jsonpath='{.data.password}' | base64 -d)
 
-TOKEN=$(curl -sk "https://${KEYCLOAK_HOST}/realms/master/protocol/openid-connect/token" \
-  -d "client_id=admin-cli" \
-  -d "username=${ADMIN_USER}" \
-  -d "password=${ADMIN_PASS}" \
-  -d "grant_type=password" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+echo "Waiting for keycloak route to be reachable..."
+for i in $(seq 1 12); do
+  TOKEN_RESPONSE=$(curl -sk "https://${KEYCLOAK_HOST}/realms/master/protocol/openid-connect/token" \
+    -d "client_id=admin-cli" \
+    -d "username=${ADMIN_USER}" \
+    -d "password=${ADMIN_PASS}" \
+    -d "grant_type=password" 2>/dev/null || true)
+  if [ -n "$TOKEN_RESPONSE" ]; then
+    TOKEN=$(echo "$TOKEN_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token',''))" 2>/dev/null || true)
+    if [ -n "$TOKEN" ]; then
+      break
+    fi
+    echo "  attempt $i/12 — keycloak responded but no token ($(echo "$TOKEN_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','unknown'))" 2>/dev/null || echo 'parse error'))"
+  else
+    echo "  attempt $i/12 — no response, waiting 10s..."
+  fi
+  sleep 10
+done
 
-if [ -z "$TOKEN" ]; then
-  echo "Error: failed to obtain keycloak admin token"
+if [ -z "${TOKEN:-}" ]; then
+  echo "Error: failed to obtain keycloak admin token after 12 attempts"
   exit 1
 fi
 
-# Get the kagenti-operator role ID
+# Get or create the kagenti-operator role
 ROLE_JSON=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/roles/${ROLE_NAME}" \
   -H "Authorization: Bearer $TOKEN")
-ROLE_ID=$(echo "$ROLE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
+ROLE_ID=$(echo "$ROLE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || true)
 
 if [ -z "$ROLE_ID" ]; then
-  echo "Error: role '${ROLE_NAME}' not found in realm '${KAGENTI_REALM}'"
-  exit 1
+  echo "Role '${ROLE_NAME}' not found — creating it..."
+  CREATE_CODE=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
+    "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/roles" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"name\":\"${ROLE_NAME}\",\"description\":\"Operator role for kagenti agents\"}")
+  if [ "$CREATE_CODE" = "201" ] || [ "$CREATE_CODE" = "409" ]; then
+    echo "  Role created (HTTP ${CREATE_CODE})"
+  else
+    echo "Error: failed to create role '${ROLE_NAME}' (HTTP ${CREATE_CODE})"
+    exit 1
+  fi
+  ROLE_JSON=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/roles/${ROLE_NAME}" \
+    -H "Authorization: Bearer $TOKEN")
+  ROLE_ID=$(echo "$ROLE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
+  if [ -z "$ROLE_ID" ]; then
+    echo "Error: role '${ROLE_NAME}' still not found after creation attempt"
+    exit 1
+  fi
 fi
 echo "Role: ${ROLE_NAME} (${ROLE_ID})"
 
