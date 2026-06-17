@@ -53,7 +53,7 @@ spec:
       serviceAccountName: a2a-currency-converter
       containers:
         - name: a2a-currency-converter
-          image: ghcr.io/kagenti/agent-examples/a2a_currency_converter:v0.1.0-alpha.1
+          image: quay.io/gabemontero/a2a_currency_converter:v0.1.0-alpha.1
           imagePullPolicy: Always
           command: ["uv", "run", "--no-sync", "app", "--host", "$(HOST)", "--port", "$(PORT)"]
           ports:
