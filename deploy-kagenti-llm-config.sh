@@ -36,6 +36,17 @@ else
 fi
 
 echo ""
+echo "=== Phase 3: Kagenti post-agent-setup (AgentRuntime CRs, authbridge config, secrets) ==="
+KAGENTI_REPO="${KAGENTI_REPO:-${SCRIPT_DIR}/../kagenti/kagenti}"
+if [ -x "${KAGENTI_REPO}/scripts/ocp/setup-kagenti.sh" ]; then
+  "${KAGENTI_REPO}/scripts/ocp/setup-kagenti.sh" --post-agent-setup --kagenti-repo "${KAGENTI_REPO}"
+else
+  echo "Warning: kagenti repo not found at ${KAGENTI_REPO}"
+  echo "Set KAGENTI_REPO to the path of your kagenti checkout, then re-run:"
+  echo "  KAGENTI_REPO=/path/to/kagenti ${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
+fi
+
+echo ""
 echo "=== Kagenti config complete ==="
 echo "Per namespace (team1, team2):"
 echo "  ConfigMap  'llamastack-env'         — LLM_API_BASE + LLM_MODEL"
