@@ -27,6 +27,15 @@ for team in team1 team2; do
 done
 
 echo ""
+echo "=== Phase 2: Assign keycloak roles to agent SPIFFE clients ==="
+if oc get pods -n keycloak -l app=keycloak --no-headers 2>/dev/null | grep -q Running; then
+  "${SCRIPT_DIR}/assign-kagenti-keycloak-roles.sh"
+else
+  echo "Keycloak not running — skipping role assignment."
+  echo "Run assign-kagenti-keycloak-roles.sh after keycloak is available."
+fi
+
+echo ""
 echo "=== Kagenti config complete ==="
 echo "Per namespace (team1, team2):"
 echo "  ConfigMap  'llamastack-env'         — LLM_API_BASE + LLM_MODEL"
