@@ -37,7 +37,7 @@ fi
 
 echo ""
 echo "=== Phase 3: Kagenti post-agent-setup (AgentRuntime CRs, authbridge config, secrets) ==="
-KAGENTI_REPO="${KAGENTI_REPO:-${SCRIPT_DIR}/../kagenti/kagenti}"
+KAGENTI_REPO="${KAGENTI_REPO:-${SCRIPT_DIR}/../../kagenti/kagenti}"
 if [ -x "${KAGENTI_REPO}/scripts/ocp/setup-kagenti.sh" ]; then
   "${KAGENTI_REPO}/scripts/ocp/setup-kagenti.sh" --post-agent-setup --kagenti-repo "${KAGENTI_REPO}"
 else
