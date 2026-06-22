@@ -13,6 +13,25 @@ spec:
   network:
     externalAccess:
       enabled: true
+    policy:
+      ingress:
+        - from:
+            - podSelector: {}
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: redhat-ods-applications
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: rolling-demo-ns
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: kagenti-system
+          ports:
+            - port: 8321
+              protocol: TCP
   workload:
     overrides:
       env:
