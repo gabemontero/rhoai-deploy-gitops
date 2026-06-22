@@ -210,6 +210,10 @@ data:
           backend: kv_default
     registered_resources:
       models:
+      - model_id: ${env.INFERENCE_MODEL:=vllm-inference/gpt-4.1}
+        provider_id: ${env.INFERENCE_PROVIDER:=openai}
+        provider_model_id: ${env.INFERENCE_PROVIDER_MODEL_ID:=gpt-4.1}
+        model_type: llm
       - metadata:
           embedding_dimension: ${env.EMBEDDING_DIMENSION:=768}
         model_id: ${env.EMBEDDING_MODEL:=granite-embedding-125m-english}
