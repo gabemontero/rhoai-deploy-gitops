@@ -8,3 +8,4 @@ resources:
   - gemini-secret.yaml
   - llamastack-custom-config.yaml
   - ogxserver.yaml
+  - allow-rhdh-ingress.yaml
