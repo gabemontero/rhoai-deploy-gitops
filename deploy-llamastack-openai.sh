@@ -21,13 +21,27 @@ done
 echo "All operators ready."
 
 echo ""
-echo "=== Phase 2: DSC — dashboard + llamastackoperator ==="
+echo "=== Phase 2: DSC — dashboard + OGX ==="
 oc apply -k components/instances/rhoai-instance/overlays/llamastack-only/
 
 echo "Waiting for DataScienceCluster to be ready..."
 oc wait --for=jsonpath='{.status.conditions[?(@.type=="Ready")].status}'=True \
   datasciencecluster/default-dsc --timeout=600s
 echo "DSC ready."
+
+echo "Waiting for OGXServer CRD to be available..."
+for i in $(seq 1 24); do
+  if oc get crd ogxservers.ogx.io &>/dev/null; then
+    echo "OGXServer CRD ready."
+    break
+  fi
+  echo "  attempt $i/24 — CRD not yet available, waiting 10s..."
+  sleep 10
+done
+if ! oc get crd ogxservers.ogx.io &>/dev/null; then
+  echo "Error: OGXServer CRD not available after 4 minutes."
+  exit 1
+fi
 
 echo ""
 echo "=== Phase 3: LlamaStack instance (pointed at OpenAI) ==="
@@ -39,14 +53,34 @@ oc wait --for=condition=complete job/patch-openai-credentials -n llamastack --ti
 
 echo ""
 echo "Waiting for LlamaStack deployment to be available..."
-oc wait --for=condition=available deployment/llamastack -n llamastack --timeout=300s
-echo "LlamaStack deployment ready."
+for i in $(seq 1 30); do
+  dep_name=$(oc get deployment -n llamastack -l ogx.io/server=llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
+  if [ -n "$dep_name" ]; then
+    echo "Found deployment: $dep_name"
+    oc wait --for=condition=available "deployment/$dep_name" -n llamastack --timeout=300s
+    echo "LlamaStack deployment ready."
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "Warning: No OGX-managed deployment found after 5 minutes. Checking for any llamastack deployment..."
+    dep_name=$(oc get deployment -n llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -v postgres | head -1)
+    if [ -n "$dep_name" ]; then
+      oc wait --for=condition=available "deployment/$dep_name" -n llamastack --timeout=300s
+    else
+      echo "Error: No llamastack deployment found."
+      exit 1
+    fi
+  fi
+  echo "  attempt $i/30 — no OGX deployment yet, waiting 10s..."
+  sleep 10
+done
 
 echo ""
-echo "Waiting for operator to create route (up to 2 minutes)..."
+echo "Waiting for route to be created (up to 2 minutes)..."
 route_created=false
 for i in $(seq 1 12); do
-  if oc get route llamastack -n llamastack &>/dev/null; then
+  route_name=$(oc get route -n llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
+  if [ -n "$route_name" ]; then
     route_created=true
     break
   fi
@@ -56,14 +90,17 @@ done
 
 if [ "$route_created" = false ]; then
   echo "Operator did not create route — creating it manually."
-  oc create route edge llamastack --service=llamastack-service --port=8321 -n llamastack
+  svc_name=$(oc get svc -n llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -v postgres | head -1)
+  svc_name="${svc_name:-llamastack-service}"
+  oc create route edge llamastack --service="$svc_name" --port=8321 -n llamastack
+  route_name="llamastack"
 fi
 
 echo ""
 echo "=== RHOAI + LlamaStack deployment complete ==="
-ROUTE_HOST=$(oc get route llamastack -n llamastack -o jsonpath='{.spec.host}')
+ROUTE_HOST=$(oc get route "$route_name" -n llamastack -o jsonpath='{.spec.host}')
 echo "LlamaStack route: https://${ROUTE_HOST}"
-echo "In-cluster URL:   http://llamastack-service.llamastack.svc.cluster.local:8321"
+echo "In-cluster URL:   http://${svc_name:-llamastack-service}.llamastack.svc.cluster.local:8321"
 
 echo ""
 echo "=== Phase 4: Register MCP tools in LlamaStack ==="

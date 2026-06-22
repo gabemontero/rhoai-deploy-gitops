@@ -25,6 +25,8 @@ spec:
     kueue:
       managementState: Removed
     llamastackoperator:
+      managementState: Removed
+    ogx:
       managementState: Managed
     mlflowoperator:
       managementState: Removed

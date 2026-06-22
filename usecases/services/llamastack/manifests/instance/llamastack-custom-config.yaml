@@ -2,6 +2,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: llamastack-custom-config
+  labels:
+    ogx.io/watch: "true"
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
@@ -9,13 +11,9 @@ data:
     version: 2
     image_name: rh
     apis:
-    - agents
     - batches
-    - datasetio
-    - eval
     - inference
-    - safety
-    - scoring
+    - responses
     - tool_runtime
     - vector_io
     - files
@@ -124,93 +122,16 @@ data:
           persistence:
             backend: kv_default
             namespace: vector_io::qdrant_remote
-      safety:
-        - provider_id: trustyai_fms
-          provider_type: remote::trustyai_fms
-          module: llama_stack_provider_trustyai_fms==0.4.0
-          config:
-            orchestrator_url: ${env.FMS_ORCHESTRATOR_URL:=}
-            ssl_cert_path: ${env.FMS_SSL_CERT_PATH:=}
-            shields: {}
-      agents:
-      - provider_id: meta-reference
-        provider_type: inline::meta-reference
+      responses:
+      - provider_id: builtin
+        provider_type: inline::builtin
         config:
           persistence:
-            agent_state:
-              backend: kv_default
-              namespace: agents::meta_reference
             responses:
               table_name: agents_responses
               backend: sql_default
               max_write_queue_size: 10000
               num_writers: 4
-      eval:
-      - provider_id: meta-reference
-        provider_type: inline::meta-reference
-        config:
-          kvstore:
-            backend: kv_default
-            namespace: eval::meta_reference
-      - provider_id: trustyai_lmeval
-        provider_type: remote::trustyai_lmeval
-        module: llama_stack_provider_lmeval==0.5.0
-        config:
-          use_k8s: ${env.TRUSTYAI_LMEVAL_USE_K8S:=true}
-          base_url: ${env.VLLM_URL:=http://localhost:8000/v1}
-      - provider_id: ${env.TRUSTYAI_EMBEDDING_MODEL:+trustyai_ragas_inline}
-        provider_type: inline::trustyai_ragas
-        module: llama_stack_provider_ragas.inline==0.6.0
-        config:
-          embedding_model: ${env.TRUSTYAI_EMBEDDING_MODEL:=}
-      - provider_id: ${env.ENABLE_KUBEFLOW_RAGAS:+trustyai_ragas_remote}
-        provider_type: remote::trustyai_ragas
-        module: llama_stack_provider_ragas.remote==0.6.0
-        config:
-          embedding_model: ${env.TRUSTYAI_EMBEDDING_MODEL:=}
-          kubeflow_config:
-            results_s3_prefix: ${env.KUBEFLOW_RESULTS_S3_PREFIX:=}
-            s3_credentials_secret_name: ${env.KUBEFLOW_S3_CREDENTIALS_SECRET_NAME:=}
-            pipelines_endpoint: ${env.KUBEFLOW_PIPELINES_ENDPOINT:=}
-            namespace: ${env.KUBEFLOW_NAMESPACE:=}
-            llama_stack_url: ${env.KUBEFLOW_LLAMA_STACK_URL:=}
-            base_image: ${env.KUBEFLOW_BASE_IMAGE:=}
-            pipelines_api_token: ${env.KUBEFLOW_PIPELINES_TOKEN:=}
-      - provider_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak_remote}
-        provider_type: remote::trustyai_garak
-        module: llama_stack_provider_trustyai_garak==0.2.0
-        config:
-          llama_stack_url: ${env.KUBEFLOW_LLAMA_STACK_URL:=}
-          kubeflow_config:
-            pipelines_endpoint: ${env.KUBEFLOW_PIPELINES_ENDPOINT:=}
-            namespace: ${env.KUBEFLOW_NAMESPACE:=}
-            garak_base_image: ${env.KUBEFLOW_GARAK_BASE_IMAGE:=}
-            pipelines_api_token: ${env.KUBEFLOW_PIPELINES_TOKEN:=}
-            experiment_name: ${env.KUBEFLOW_EXPERIMENT_NAME:=}
-      datasetio:
-      - provider_id: huggingface
-        provider_type: remote::huggingface
-        config:
-          kvstore:
-            backend: kv_default
-            namespace: datasetio::huggingface
-      - provider_id: localfs
-        provider_type: inline::localfs
-        config:
-          kvstore:
-            backend: kv_default
-            namespace: datasetio::localfs
-      scoring:
-      - provider_id: basic
-        provider_type: inline::basic
-        config: {}
-      - provider_id: llm-as-judge
-        provider_type: inline::llm-as-judge
-        config: {}
-      - provider_id: braintrust
-        provider_type: inline::braintrust
-        config:
-          openai_api_key: ${env.OPENAI_API_KEY:=}
       tool_runtime:
       - provider_id: brave-search
         provider_type: remote::brave-search
@@ -222,9 +143,6 @@ data:
         config:
           api_key: ${env.TAVILY_SEARCH_API_KEY:=}
           max_results: 3
-      - provider_id: rag-runtime
-        provider_type: inline::rag-runtime
-        config: {}
       - provider_id: model-context-protocol
         provider_type: remote::model-context-protocol
         config: {}
@@ -255,6 +173,9 @@ data:
           kvstore:
             namespace: batches
             backend: kv_default
+          sqlstore:
+            table_name: batches
+            backend: sql_default
     storage:
       backends:
         kv_default:
@@ -297,62 +218,9 @@ data:
         model_type: embedding
       shields: []
       vector_dbs: []
-      datasets: []
-      scoring_fns: []
-      benchmarks:
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::owasp_llm_top10}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: owasp_llm_top10
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::avid_security}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: avid_security
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::avid_ethics}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: avid_ethics
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::avid_performance}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: avid_performance
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::quick}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: quick
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::avid}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: trustyai_garak::avid
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::quality}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: trustyai_garak::quality
-      - benchmark_id: ${env.ENABLE_KUBEFLOW_GARAK:+trustyai_garak::cwe}
-        dataset_id: garak
-        scoring_functions:
-          - garak_scoring
-        provider_id: trustyai_garak_remote
-        provider_benchmark_id: trustyai_garak::cwe
       tool_groups:
       - toolgroup_id: builtin::websearch
         provider_id: tavily-search
-      - toolgroup_id: builtin::rag
-        provider_id: rag-runtime
     vector_stores:
       annotation_prompt_params:
         enable_annotations: true

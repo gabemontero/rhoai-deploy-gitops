@@ -7,4 +7,4 @@ resources:
   - llama-stack-secret.yaml
   - gemini-secret.yaml
   - llamastack-custom-config.yaml
-  - llamastack-distribution.yaml
+  - ogxserver.yaml
