@@ -17,6 +17,7 @@ data:
     - tool_runtime
     - vector_io
     - files
+    - file_processors
     providers:
       inference:
       - provider_id: ${env.VLLM_URL:+vllm-inference}
@@ -166,6 +167,10 @@ data:
           metadata_store:
             backend: sql_default
             table_name: files_metadata
+      file_processors:
+      - provider_id: pypdf
+        provider_type: inline::pypdf
+        config: {}
       batches:
       - provider_id: reference
         provider_type: inline::reference
