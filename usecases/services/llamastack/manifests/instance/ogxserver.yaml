@@ -6,7 +6,9 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   distribution:
-    name: rh-dev
+    # Using image override for ea.2 (OGX 1.1.0+) until operator ships it.
+    # Revert to "name: rh-dev" once RHOAI operator is updated past 3.5.0-ea.1.
+    image: registry.redhat.io/rhoai/odh-ogx-core-rhel9@sha256:fd71c3ed486398002dac8aa09e1e4162e2bf740d33e192e1bbc2f3233d4f766a
   overrideConfig:
     name: llamastack-custom-config
     key: config.yaml
