@@ -45,11 +45,27 @@ fi
 
 echo ""
 echo "=== Phase 3: LlamaStack instance (pointed at OpenAI) ==="
+
+if [ -z "${OPENAI_API_KEY:-}" ]; then
+  echo "Error: OPENAI_API_KEY environment variable is not set."
+  echo "  Set it in your shell (e.g. in ~/.bashrc) and re-run."
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OPENAI_ENV="${SCRIPT_DIR}/usecases/services/llamastack/manifests/openai-credentials/openai.env"
+echo "api-key=${OPENAI_API_KEY}" > "$OPENAI_ENV"
+echo "Populated openai.env from \$OPENAI_API_KEY."
+
 oc apply -k usecases/services/llamastack/profiles/openai-only/
 
 echo ""
 echo "Waiting for patch-openai-credentials job to complete..."
 oc wait --for=condition=complete job/patch-openai-credentials -n llamastack --timeout=600s
+
+echo "Ensuring llama-stack-secret has OPENAI_API_KEY and VLLM_API_TOKEN..."
+oc patch secret llama-stack-secret -n llamastack \
+  -p "{\"stringData\":{\"OPENAI_API_KEY\":\"${OPENAI_API_KEY}\",\"VLLM_API_TOKEN\":\"${OPENAI_API_KEY}\",\"VLLM_EMBEDDING_API_TOKEN\":\"${OPENAI_API_KEY}\"}}"
 
 echo ""
 echo "Waiting for LlamaStack deployment to be available..."
@@ -57,7 +73,9 @@ for i in $(seq 1 30); do
   dep_name=$(oc get deployment -n llamastack -l ogx.io/server=llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
   if [ -n "$dep_name" ]; then
     echo "Found deployment: $dep_name"
-    oc wait --for=condition=available "deployment/$dep_name" -n llamastack --timeout=300s
+    echo "Restarting deployment to ensure it picks up the patched secret..."
+    oc rollout restart "deployment/$dep_name" -n llamastack
+    oc rollout status "deployment/$dep_name" -n llamastack --timeout=300s
     echo "LlamaStack deployment ready."
     break
   fi
@@ -117,7 +135,6 @@ fi
 
 echo ""
 echo "=== Phase 4: Register MCP tools in LlamaStack ==="
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${SCRIPT_DIR}/register-llamastack-tools.sh"
 
 echo ""
