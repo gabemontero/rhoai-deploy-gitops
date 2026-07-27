@@ -30,7 +30,7 @@ spec:
                   kubernetes.io/metadata.name: rolling-demo-ns
             - namespaceSelector:
                 matchLabels:
-                  kubernetes.io/metadata.name: kagenti-system
+                  kubernetes.io/metadata.name: rossoctl-system
             - namespaceSelector:
                 matchLabels:
                   kubernetes.io/metadata.name: team1

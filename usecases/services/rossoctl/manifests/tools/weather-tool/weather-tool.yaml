@@ -8,11 +8,11 @@ kind: Service
 metadata:
   name: weather-tool-mcp
   labels:
-    kagenti.io/type: tool
-    protocol.kagenti.io/mcp: ""
-    kagenti.io/transport: streamable_http
-    kagenti.io/framework: Python
-    kagenti.io/workload-type: deployment
+    rossoctl.io/type: tool
+    protocol.rossoctl.io/mcp: ""
+    rossoctl.io/transport: streamable_http
+    rossoctl.io/framework: Python
+    rossoctl.io/workload-type: deployment
     app.kubernetes.io/name: weather-tool
     app.kubernetes.io/component: tool
 spec:
@@ -30,12 +30,12 @@ kind: Deployment
 metadata:
   name: weather-tool
   labels:
-    kagenti.io/type: tool
-    protocol.kagenti.io/mcp: ""
-    kagenti.io/transport: streamable_http
-    kagenti.io/framework: Python
-    kagenti.io/workload-type: deployment
-    kagenti.io/inject: disabled
+    rossoctl.io/type: tool
+    protocol.rossoctl.io/mcp: ""
+    rossoctl.io/transport: streamable_http
+    rossoctl.io/framework: Python
+    rossoctl.io/workload-type: deployment
+    rossoctl.io/inject: disabled
     app.kubernetes.io/name: weather-tool
     app.kubernetes.io/component: tool
 spec:
@@ -46,19 +46,19 @@ spec:
   template:
     metadata:
       labels:
-        kagenti.io/type: tool
-        protocol.kagenti.io/mcp: ""
-        kagenti.io/transport: streamable_http
-        kagenti.io/framework: Python
-        kagenti.io/workload-type: deployment
-        kagenti.io/inject: disabled
+        rossoctl.io/type: tool
+        protocol.rossoctl.io/mcp: ""
+        rossoctl.io/transport: streamable_http
+        rossoctl.io/framework: Python
+        rossoctl.io/workload-type: deployment
+        rossoctl.io/inject: disabled
         app.kubernetes.io/name: weather-tool
         app.kubernetes.io/component: tool
     spec:
       serviceAccountName: weather-tool
       containers:
         - name: weather-tool
-          image: ghcr.io/kagenti/agent-examples/weather_tool:v0.1.0-alpha.1
+          image: ghcr.io/rossoctl/agent-examples/weather_tool:v0.1.0-alpha.1
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -68,7 +68,7 @@ spec:
             - name: HOST
               value: "0.0.0.0"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://otel-collector.kagenti-system.svc.cluster.local:8335
+              value: http://otel-collector.rossoctl-system.svc.cluster.local:8335
             - name: KEYCLOAK_URL
               value: http://keycloak-service.keycloak.svc.cluster.local:8080
             - name: UV_CACHE_DIR

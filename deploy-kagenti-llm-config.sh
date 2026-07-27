@@ -1,11 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Configuring kagenti agent namespaces ==="
+echo "=== Configuring rossoctl agent namespaces ==="
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KAGENTI_PROFILES="${SCRIPT_DIR}/usecases/services/kagenti/profiles"
-OPENAI_ENV="${SCRIPT_DIR}/usecases/services/kagenti/manifests/llm-config/openai.env"
+ROSSOCTL_PROFILES="${SCRIPT_DIR}/usecases/services/rossoctl/profiles"
+OPENAI_ENV="${SCRIPT_DIR}/usecases/services/rossoctl/manifests/llm-config/openai.env"
 
 if [ ! -f "${OPENAI_ENV}" ]; then
   echo "Error: ${OPENAI_ENV} not found."
@@ -16,7 +16,7 @@ fi
 for team in team1 team2; do
   echo ""
   echo "--- Applying to namespace: ${team} ---"
-  oc apply -k "${KAGENTI_PROFILES}/${team}/"
+  oc apply -k "${ROSSOCTL_PROFILES}/${team}/"
 done
 
 echo ""
@@ -29,25 +29,25 @@ done
 echo ""
 echo "=== Phase 2: Assign keycloak roles to agent SPIFFE clients ==="
 if oc get pods -n keycloak -l app=keycloak --no-headers 2>/dev/null | grep -q Running; then
-  "${SCRIPT_DIR}/assign-kagenti-keycloak-roles.sh"
+  "${SCRIPT_DIR}/assign-rossoctl-keycloak-roles.sh"
 else
   echo "Keycloak not running — skipping role assignment."
-  echo "Run assign-kagenti-keycloak-roles.sh after keycloak is available."
+  echo "Run assign-rossoctl-keycloak-roles.sh after keycloak is available."
 fi
 
 echo ""
-echo "=== Phase 3: Kagenti post-agent-setup (AgentRuntime CRs, authbridge config, secrets) ==="
-KAGENTI_REPO="${KAGENTI_REPO:-${SCRIPT_DIR}/../../kagenti/kagenti}"
-if [ -x "${KAGENTI_REPO}/scripts/ocp/setup-kagenti.sh" ]; then
-  "${KAGENTI_REPO}/scripts/ocp/setup-kagenti.sh" --post-agent-setup --kagenti-repo "${KAGENTI_REPO}"
+echo "=== Phase 3: Rossoctl post-agent-setup (AgentRuntime CRs, authbridge config, secrets) ==="
+ROSSOCTL_REPO="${ROSSOCTL_REPO:-${SCRIPT_DIR}/../../kagenti/kagenti}"
+if [ -x "${ROSSOCTL_REPO}/scripts/ocp/setup-rossoctl.sh" ]; then
+  "${ROSSOCTL_REPO}/scripts/ocp/setup-rossoctl.sh" --post-agent-setup --rossoctl-repo "${ROSSOCTL_REPO}"
 else
-  echo "Warning: kagenti repo not found at ${KAGENTI_REPO}"
-  echo "Set KAGENTI_REPO to the path of your kagenti checkout, then re-run:"
-  echo "  KAGENTI_REPO=/path/to/kagenti ${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
+  echo "Warning: rossoctl repo not found at ${ROSSOCTL_REPO}"
+  echo "Set ROSSOCTL_REPO to the path of your rossoctl checkout, then re-run:"
+  echo "  ROSSOCTL_REPO=/path/to/rossoctl ${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
 fi
 
 echo ""
-echo "=== Kagenti config complete ==="
+echo "=== Rossoctl config complete ==="
 echo "Per namespace (team1, team2):"
 echo "  ConfigMap  'llamastack-env'         — LLM_API_BASE + LLM_MODEL"
 echo "  Secret     'openai-secret'          — apikey"

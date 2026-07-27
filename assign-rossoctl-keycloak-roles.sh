@@ -1,11 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Assigning kagenti-operator role to agent SPIFFE clients ==="
+echo "=== Assigning rossoctl-operator role to agent SPIFFE clients ==="
 
 KEYCLOAK_NS="${KEYCLOAK_NS:-keycloak}"
-KAGENTI_REALM="${KAGENTI_REALM:-kagenti}"
-ROLE_NAME="${ROLE_NAME:-kagenti-operator}"
+ROSSOCTL_REALM="${ROSSOCTL_REALM:-rossoctl}"
+ROLE_NAME="${ROLE_NAME:-rossoctl-operator}"
 
 # Derive cluster apps domain from the keycloak route
 KEYCLOAK_HOST=$(oc get routes -n "${KEYCLOAK_NS}" -o jsonpath='{.items[0].spec.host}')
@@ -41,25 +41,25 @@ if [ -z "${TOKEN:-}" ]; then
   exit 1
 fi
 
-# Get or create the kagenti-operator role
-ROLE_JSON=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/roles/${ROLE_NAME}" \
+# Get or create the rossoctl-operator role
+ROLE_JSON=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/roles/${ROLE_NAME}" \
   -H "Authorization: Bearer $TOKEN")
 ROLE_ID=$(echo "$ROLE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null || true)
 
 if [ -z "$ROLE_ID" ]; then
   echo "Role '${ROLE_NAME}' not found — creating it..."
   CREATE_CODE=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
-    "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/roles" \
+    "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/roles" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "{\"name\":\"${ROLE_NAME}\",\"description\":\"Operator role for kagenti agents\"}")
+    -d "{\"name\":\"${ROLE_NAME}\",\"description\":\"Operator role for rossoctl agents\"}")
   if [ "$CREATE_CODE" = "201" ] || [ "$CREATE_CODE" = "409" ]; then
     echo "  Role created (HTTP ${CREATE_CODE})"
   else
     echo "Error: failed to create role '${ROLE_NAME}' (HTTP ${CREATE_CODE})"
     exit 1
   fi
-  ROLE_JSON=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/roles/${ROLE_NAME}" \
+  ROLE_JSON=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/roles/${ROLE_NAME}" \
     -H "Authorization: Bearer $TOKEN")
   ROLE_ID=$(echo "$ROLE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
   if [ -z "$ROLE_ID" ]; then
@@ -73,7 +73,7 @@ ROLE_PAYLOAD="[{\"id\":\"${ROLE_ID}\",\"name\":\"${ROLE_NAME}\"}]"
 
 # Get all clients and find SPIFFE-based agent clients
 echo ""
-ALL_CLIENTS=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/clients" \
+ALL_CLIENTS=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/clients" \
   -H "Authorization: Bearer $TOKEN")
 
 SPIFFE_CLIENTS=$(echo "$ALL_CLIENTS" | python3 -c "
@@ -96,11 +96,11 @@ while IFS='|' read -r client_uuid client_id; do
   sa=$(echo "$client_id" | sed 's|.*/sa/||')
 
   # Get service account user
-  SA_USER=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/clients/${client_uuid}/service-account-user" \
+  SA_USER=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/clients/${client_uuid}/service-account-user" \
     -H "Authorization: Bearer $TOKEN" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
 
   # Check if role already assigned
-  EXISTING=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/users/${SA_USER}/role-mappings/realm" \
+  EXISTING=$(curl -sk "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/users/${SA_USER}/role-mappings/realm" \
     -H "Authorization: Bearer $TOKEN" | python3 -c "
 import sys, json
 for r in json.load(sys.stdin):
@@ -115,7 +115,7 @@ for r in json.load(sys.stdin):
   fi
 
   HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" -X POST \
-    "https://${KEYCLOAK_HOST}/admin/realms/${KAGENTI_REALM}/users/${SA_USER}/role-mappings/realm" \
+    "https://${KEYCLOAK_HOST}/admin/realms/${ROSSOCTL_REALM}/users/${SA_USER}/role-mappings/realm" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d "${ROLE_PAYLOAD}")

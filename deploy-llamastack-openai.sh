@@ -138,10 +138,10 @@ echo "=== Phase 4: Register MCP tools in LlamaStack ==="
 "${SCRIPT_DIR}/register-llamastack-tools.sh"
 
 echo ""
-echo "=== Phase 5: Kagenti agent namespace LLM config ==="
-if oc get namespace kagenti-system &>/dev/null; then
+echo "=== Phase 5: Rossoctl agent namespace LLM config ==="
+if oc get namespace rossoctl-system &>/dev/null; then
   "${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
 else
-  echo "kagenti-system namespace not found — skipping kagenti LLM config."
-  echo "Run deploy-kagenti-llm-config.sh after installing kagenti."
+  echo "rossoctl-system namespace not found — skipping rossoctl LLM config."
+  echo "Run deploy-kagenti-llm-config.sh after installing rossoctl."
 fi

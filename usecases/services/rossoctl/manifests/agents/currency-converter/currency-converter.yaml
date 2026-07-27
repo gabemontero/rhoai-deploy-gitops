@@ -8,10 +8,10 @@ kind: Service
 metadata:
   name: a2a-currency-converter
   labels:
-    kagenti.io/type: agent
-    protocol.kagenti.io/a2a: ""
-    kagenti.io/framework: LangGraph
-    kagenti.io/workload-type: deployment
+    rossoctl.io/type: agent
+    protocol.rossoctl.io/a2a: ""
+    rossoctl.io/framework: LangGraph
+    rossoctl.io/workload-type: deployment
     app.kubernetes.io/name: a2a-currency-converter
     app.kubernetes.io/component: agent
 spec:
@@ -29,10 +29,10 @@ kind: Deployment
 metadata:
   name: a2a-currency-converter
   labels:
-    kagenti.io/type: agent
-    protocol.kagenti.io/a2a: ""
-    kagenti.io/framework: LangGraph
-    kagenti.io/workload-type: deployment
+    rossoctl.io/type: agent
+    protocol.rossoctl.io/a2a: ""
+    rossoctl.io/framework: LangGraph
+    rossoctl.io/workload-type: deployment
     app.kubernetes.io/name: a2a-currency-converter
     app.kubernetes.io/component: agent
 spec:
@@ -43,10 +43,10 @@ spec:
   template:
     metadata:
       labels:
-        kagenti.io/type: agent
-        protocol.kagenti.io/a2a: ""
-        kagenti.io/framework: LangGraph
-        kagenti.io/workload-type: deployment
+        rossoctl.io/type: agent
+        protocol.rossoctl.io/a2a: ""
+        rossoctl.io/framework: LangGraph
+        rossoctl.io/workload-type: deployment
         app.kubernetes.io/name: a2a-currency-converter
         app.kubernetes.io/component: agent
     spec:
@@ -66,7 +66,7 @@ spec:
             - name: AGENT_ENDPOINT
               value: PLACEHOLDER
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://otel-collector.kagenti-system.svc.cluster.local:8335
+              value: http://otel-collector.rossoctl-system.svc.cluster.local:8335
             - name: KEYCLOAK_URL
               value: http://keycloak-service.keycloak.svc.cluster.local:8080
             - name: LLM_API_BASE
