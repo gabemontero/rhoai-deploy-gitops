@@ -27,16 +27,7 @@ for team in team1 team2; do
 done
 
 echo ""
-echo "=== Phase 2: Assign keycloak roles to agent SPIFFE clients ==="
-if oc get pods -n keycloak -l app=keycloak --no-headers 2>/dev/null | grep -q Running; then
-  "${SCRIPT_DIR}/assign-rossoctl-keycloak-roles.sh"
-else
-  echo "Keycloak not running — skipping role assignment."
-  echo "Run assign-rossoctl-keycloak-roles.sh after keycloak is available."
-fi
-
-echo ""
-echo "=== Phase 3: Rossoctl post-agent-setup (AgentRuntime CRs, authbridge config, secrets) ==="
+echo "=== Phase 2: Rossoctl post-agent-setup (AgentRuntime CRs, authbridge config, secrets) ==="
 ROSSOCTL_REPO="${ROSSOCTL_REPO:-${SCRIPT_DIR}/../../kagenti/kagenti}"
 if [ -x "${ROSSOCTL_REPO}/scripts/ocp/setup-rossoctl.sh" ]; then
   "${ROSSOCTL_REPO}/scripts/ocp/setup-rossoctl.sh" --post-agent-setup --rossoctl-repo "${ROSSOCTL_REPO}"

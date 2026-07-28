@@ -29,7 +29,7 @@ kind: Deployment
 metadata:
   name: a2a-currency-converter
   labels:
-    rossoctl.io/type: agent
+    rossoctl.dev/type: agent
     protocol.rossoctl.io/a2a: ""
     rossoctl.io/framework: LangGraph
     rossoctl.io/workload-type: deployment
@@ -43,7 +43,6 @@ spec:
   template:
     metadata:
       labels:
-        rossoctl.io/type: agent
         protocol.rossoctl.io/a2a: ""
         rossoctl.io/framework: LangGraph
         rossoctl.io/workload-type: deployment

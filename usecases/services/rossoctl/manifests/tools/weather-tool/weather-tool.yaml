@@ -30,7 +30,7 @@ kind: Deployment
 metadata:
   name: weather-tool
   labels:
-    rossoctl.io/type: tool
+    rossoctl.dev/type: tool
     protocol.rossoctl.io/mcp: ""
     rossoctl.io/transport: streamable_http
     rossoctl.io/framework: Python
@@ -46,7 +46,6 @@ spec:
   template:
     metadata:
       labels:
-        rossoctl.io/type: tool
         protocol.rossoctl.io/mcp: ""
         rossoctl.io/transport: streamable_http
         rossoctl.io/framework: Python
