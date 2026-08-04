@@ -4,4 +4,4 @@ metadata:
   name: llamastack-env
 data:
   LLM_API_BASE: "http://llamastack-service.llamastack.svc.cluster.local:8321/v1"
-  LLM_MODEL: "vllm-inference/gpt-4.1"
+  LLM_MODEL: "openai/vllm-inference/gpt-4.1"

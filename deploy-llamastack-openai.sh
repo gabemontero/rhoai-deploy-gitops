@@ -63,9 +63,9 @@ echo ""
 echo "Waiting for patch-openai-credentials job to complete..."
 oc wait --for=condition=complete job/patch-openai-credentials -n llamastack --timeout=600s
 
-echo "Ensuring llama-stack-secret has OPENAI_API_KEY and VLLM_API_TOKEN..."
+echo "Ensuring llama-stack-secret has OPENAI_API_KEY, VLLM_API_TOKEN, and correct INFERENCE_MODEL..."
 oc patch secret llama-stack-secret -n llamastack \
-  -p "{\"stringData\":{\"OPENAI_API_KEY\":\"${OPENAI_API_KEY}\",\"VLLM_API_TOKEN\":\"${OPENAI_API_KEY}\",\"VLLM_EMBEDDING_API_TOKEN\":\"${OPENAI_API_KEY}\"}}"
+  -p "{\"stringData\":{\"OPENAI_API_KEY\":\"${OPENAI_API_KEY}\",\"VLLM_API_TOKEN\":\"${OPENAI_API_KEY}\",\"VLLM_EMBEDDING_API_TOKEN\":\"${OPENAI_API_KEY}\",\"INFERENCE_MODEL\":\"openai/vllm-inference/gpt-4.1\"}}"
 
 echo ""
 echo "Waiting for LlamaStack deployment to be available..."
