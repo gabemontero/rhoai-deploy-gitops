@@ -70,7 +70,10 @@ oc patch secret llama-stack-secret -n llamastack \
 echo ""
 echo "Waiting for LlamaStack deployment to be available..."
 for i in $(seq 1 30); do
-  dep_name=$(oc get deployment -n llamastack -l ogx.io/server=llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
+  dep_name=$(oc get deployment -n llamastack -l app.kubernetes.io/managed-by=ogx-operator --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)
+  if [ -z "$dep_name" ]; then
+    dep_name=$(oc get deployment -n llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -v postgres | head -1)
+  fi
   if [ -n "$dep_name" ]; then
     echo "Found deployment: $dep_name"
     echo "Restarting deployment to ensure it picks up the patched secret..."
@@ -80,14 +83,8 @@ for i in $(seq 1 30); do
     break
   fi
   if [ "$i" -eq 30 ]; then
-    echo "Warning: No OGX-managed deployment found after 5 minutes. Checking for any llamastack deployment..."
-    dep_name=$(oc get deployment -n llamastack --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -v postgres | head -1)
-    if [ -n "$dep_name" ]; then
-      oc wait --for=condition=available "deployment/$dep_name" -n llamastack --timeout=300s
-    else
-      echo "Error: No llamastack deployment found."
-      exit 1
-    fi
+    echo "Error: No llamastack deployment found after 5 minutes."
+    exit 1
   fi
   echo "  attempt $i/30 — no OGX deployment yet, waiting 10s..."
   sleep 10
