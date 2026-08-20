@@ -15,12 +15,12 @@ spec:
     feastoperator:
       managementState: Removed
     kserve:
-      managementState: Removed
+      managementState: Managed
       modelsAsService:
         managementState: Removed
       nim:
         airGapped: false
-        managementState: Removed
+        managementState: Managed
       rawDeploymentServiceConfig: Headless
     kueue:
       managementState: Removed
