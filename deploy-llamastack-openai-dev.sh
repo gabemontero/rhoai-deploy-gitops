@@ -1,28 +1,104 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Phase 1: Prerequisite operators (cert-manager, jobset, rhoai) ==="
-oc apply -k components/operators/cert-manager/
-oc apply -k components/operators/jobset-operator/
-oc apply -k components/operators/rhoai-operator/
+# This script is for deploying OGX to the dev cluster (redhat-ai-dev)
+# which already has RHOAI 3.4.3 installed with other components enabled.
+# It patches the DataScienceCluster to add OGX without disrupting existing components.
+#
+# NOTE: This script skips cert-manager and jobset operators because:
+#   - cert-manager: Not needed when KServe runs in Headless mode (uses OpenShift Routes for TLS)
+#   - jobset: Only needed for Training Operator (disabled on dev cluster)
+
+# Handle KUBECONFIG - ask user which cluster to use
+if [ -n "${KUBECONFIG:-}" ]; then
+  current_cluster=$(oc whoami --show-server 2>/dev/null || echo "unknown")
+  echo "KUBECONFIG is set to: $KUBECONFIG"
+  echo "Currently connected to: $current_cluster"
+  echo ""
+  read -p "Use this cluster? [Y/n] " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    echo "Unsetting KUBECONFIG to use default ~/.kube/config"
+    unset KUBECONFIG
+    current_cluster=$(oc whoami --show-server 2>/dev/null || echo "unknown")
+    echo "Now connected to: $current_cluster"
+  else
+    echo "Using cluster from KUBECONFIG"
+  fi
+else
+  echo "Using default cluster from ~/.kube/config"
+fi
 
 echo ""
-echo "Waiting for operators to reach Succeeded..."
-while true; do
-  statuses=$(oc get csv -A --no-headers 2>/dev/null | grep -E 'cert-manager|jobset|rhods' || true)
-  count=$(echo "$statuses" | grep -c "Succeeded" || true)
-  total=$(echo "$statuses" | grep -c -E 'cert-manager|jobset|rhods' || true)
-  echo "  $count/$total operators Succeeded"
-  if [ "$count" -ge 3 ] 2>/dev/null; then
+echo "=== Phase 1: RHOAI Upgrade (optional - may be handled separately) ==="
+echo "Current RHOAI version:"
+# Check both common namespaces for RHOAI operator
+for ns in redhat-ods-operator openshift-operators; do
+  if oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -q rhods; then
+    oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep rhods
     break
   fi
-  sleep 15
 done
-echo "All operators ready."
+
+read -p "Do you want to upgrade RHOAI to beta channel (3.5.0-ea.2)? [y/N] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo "Upgrading RHOAI operator to beta channel..."
+  echo "(Skipping cert-manager and jobset — not needed for Headless KServe + OGX-only deployment)"
+  oc apply -k components/operators/rhoai-operator/
+
+  echo ""
+  echo "Waiting for RHOAI operator to reach Succeeded..."
+  while true; do
+    rhods_csv=""
+    for ns in redhat-ods-operator openshift-operators; do
+      csv=$(oc get csv -n "$ns" --no-headers 2>/dev/null | grep rhods || true)
+      if [ -n "$csv" ]; then
+        rhods_csv="$csv"
+        break
+      fi
+    done
+    if echo "$rhods_csv" | grep -q "Succeeded"; then
+      echo "  RHOAI operator ready"
+      break
+    fi
+    echo "  Waiting for rhods operator... (current: $(echo "$rhods_csv" | awk '{print $1, $NF}' || echo 'not found'))"
+    sleep 15
+  done
+  echo "RHOAI operator upgrade complete."
+
+  echo ""
+  echo "New RHOAI version:"
+  for ns in redhat-ods-operator openshift-operators; do
+    if oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -q rhods; then
+      oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep rhods
+      break
+    fi
+  done
+else
+  echo "Skipping RHOAI upgrade. Ensure you're on RHOAI 3.5.0+ for OGX support."
+  echo "Current version:"
+  for ns in redhat-ods-operator openshift-operators; do
+    if oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep -q rhods; then
+      oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep rhods
+      break
+    fi
+  done
+fi
 
 echo ""
-echo "=== Phase 2: DSC — dashboard + OGX ==="
-oc apply -k components/instances/rhoai-instance/overlays/llamastack-only/
+echo "=== Phase 2: Patch DataScienceCluster to enable OGX ==="
+
+# Check if OGX component is available (requires RHOAI 3.5.0+)
+if ! oc explain datasciencecluster.spec.components.ogx &>/dev/null; then
+  echo "Error: OGX component not available in current RHOAI version."
+  echo "  OGX requires RHOAI 3.5.0 or later."
+  echo "  Please upgrade RHOAI first."
+  exit 1
+fi
+
+echo "Patching DataScienceCluster to add OGX component (without disrupting other components)..."
+oc patch datasciencecluster default-dsc --type=merge -p '{"spec":{"components":{"ogx":{"managementState":"Managed"}}}}'
 
 echo "Waiting for DataScienceCluster to be ready..."
 oc wait --for=jsonpath='{.status.conditions[?(@.type=="Ready")].status}'=True \
@@ -31,16 +107,17 @@ echo "DSC ready."
 
 echo "Waiting for OGXServer CRD to be available..."
 for i in $(seq 1 24); do
-  if oc get crd ogxservers.ogx.io &>/dev/null; then
+  if oc get crd ogxservers.ogx.io &>/dev/null 2>&1; then
     echo "OGXServer CRD ready."
     break
   fi
   echo "  attempt $i/24 — CRD not yet available, waiting 10s..."
   sleep 10
 done
-if ! oc get crd ogxservers.ogx.io &>/dev/null; then
-  echo "Error: OGXServer CRD not available after 4 minutes."
-  exit 1
+if ! oc get crd ogxservers.ogx.io &>/dev/null 2>&1; then
+  echo "Warning: OGXServer CRD not available after 4 minutes."
+  echo "  Checking permissions..."
+  oc auth can-i get crd || echo "  No permission to check CRDs. Proceeding anyway..."
 fi
 
 echo "Waiting for OGX operator webhook to be ready..."
@@ -58,7 +135,7 @@ if [ -z "$endpoints" ]; then
 fi
 
 echo ""
-echo "=== Phase 3: LlamaStack instance (pointed at OpenAI) ==="
+echo "=== Phase 3: LlamaStack/OGX instance (pointed at OpenAI) ==="
 
 if [ -z "${OPENAI_API_KEY:-}" ]; then
   echo "Error: OPENAI_API_KEY environment variable is not set."
@@ -134,7 +211,14 @@ echo "In-cluster URL:   http://${svc_name:-llamastack-service}.llamastack.svc.cl
 echo ""
 # Check if the operator has been upgraded past ea.1 — if so, the image override
 # in ogxserver.yaml can be removed since the operator will ship a fixed image.
-rhoai_csv=$(oc get csv -n redhat-ods-operator --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep rhods || true)
+rhoai_csv=""
+for ns in redhat-ods-operator openshift-operators; do
+  csv=$(oc get csv -n "$ns" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep rhods || true)
+  if [ -n "$csv" ]; then
+    rhoai_csv="$csv"
+    break
+  fi
+done
 if [ -n "$rhoai_csv" ] && ! echo "$rhoai_csv" | grep -q "3.5.0-ea.1"; then
   echo ""
   echo "NOTE: RHOAI operator is now '$rhoai_csv' (no longer 3.5.0-ea.1)."
@@ -142,17 +226,4 @@ if [ -n "$rhoai_csv" ] && ! echo "$rhoai_csv" | grep -q "3.5.0-ea.1"; then
   echo "  usecases/services/llamastack/manifests/instance/ogxserver.yaml"
   echo "  and let the operator manage the OGX image version."
   echo ""
-fi
-
-echo ""
-echo "=== Phase 4: Register MCP tools in LlamaStack ==="
-"${SCRIPT_DIR}/register-llamastack-tools.sh"
-
-echo ""
-echo "=== Phase 5: Rossoctl agent namespace LLM config ==="
-if oc get namespace rossoctl-system &>/dev/null; then
-  "${SCRIPT_DIR}/deploy-kagenti-llm-config.sh"
-else
-  echo "rossoctl-system namespace not found — skipping rossoctl LLM config."
-  echo "Run deploy-kagenti-llm-config.sh after installing rossoctl."
 fi
