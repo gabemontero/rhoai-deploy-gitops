@@ -132,19 +132,6 @@ echo "LlamaStack route: https://${ROUTE_HOST}"
 echo "In-cluster URL:   http://${svc_name:-llamastack-service}.llamastack.svc.cluster.local:8321"
 
 echo ""
-# Check if the operator has been upgraded past ea.1 — if so, the image override
-# in ogxserver.yaml can be removed since the operator will ship a fixed image.
-rhoai_csv=$(oc get csv -n redhat-ods-operator --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep rhods || true)
-if [ -n "$rhoai_csv" ] && ! echo "$rhoai_csv" | grep -q "3.5.0-ea.1"; then
-  echo ""
-  echo "NOTE: RHOAI operator is now '$rhoai_csv' (no longer 3.5.0-ea.1)."
-  echo "  You can remove the spec.distribution.image override from"
-  echo "  usecases/services/llamastack/manifests/instance/ogxserver.yaml"
-  echo "  and let the operator manage the OGX image version."
-  echo ""
-fi
-
-echo ""
 echo "=== Phase 4: Register MCP tools in LlamaStack ==="
 "${SCRIPT_DIR}/register-llamastack-tools.sh"
 
