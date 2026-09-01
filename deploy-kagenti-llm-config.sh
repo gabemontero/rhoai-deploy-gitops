@@ -7,9 +7,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROSSOCTL_PROFILES="${SCRIPT_DIR}/usecases/services/rossoctl/profiles"
 OPENAI_ENV="${SCRIPT_DIR}/usecases/services/rossoctl/manifests/llm-config/openai.env"
 
+read -r -p "Update the Rossoctl openai.env file from OPENAI_API_KEY? [y/N] " REPLY
+if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+  if [ -z "${OPENAI_API_KEY:-}" ]; then
+    echo "Error: OPENAI_API_KEY is not set; cannot update the Rossoctl openai.env file."
+    exit 1
+  fi
+  printf 'apikey=%s\n' "$OPENAI_API_KEY" > "$OPENAI_ENV"
+  echo "Updated the gitignored Rossoctl openai.env file."
+else
+  echo "Leaving the Rossoctl openai.env file unchanged."
+fi
+
 if [ ! -f "${OPENAI_ENV}" ]; then
   echo "Error: ${OPENAI_ENV} not found."
   echo "Create it with: echo 'apikey=<your-openai-api-key>' > ${OPENAI_ENV}"
+  exit 1
+fi
+IFS='=' read -r openai_key_name rossoctl_openai_api_key < "$OPENAI_ENV"
+if [ "$openai_key_name" != "apikey" ] || [ -z "$rossoctl_openai_api_key" ] || [ "$rossoctl_openai_api_key" = "CHANGE_ME" ]; then
+  echo "Error: $OPENAI_ENV must contain a non-placeholder apikey value."
   exit 1
 fi
 
