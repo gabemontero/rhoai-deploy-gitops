@@ -1,3 +1,6 @@
 - op: replace
   path: /spec/channel
-  value: beta
+  value: stable-3.x
+- op: add
+  path: /spec/startingCSV
+  value: rhods-operator.3.5.0

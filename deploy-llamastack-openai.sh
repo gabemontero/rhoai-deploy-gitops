@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Phase 1: Prerequisite operators (cert-manager, jobset, rhoai) ==="
+echo "=== Phase 1: Prerequisite operators (cert-manager, jobset, RHOAI 3.5.0 stable) ==="
 oc apply -k components/operators/cert-manager/
 oc apply -k components/operators/jobset-operator/
 oc apply -k components/operators/rhoai-operator/
