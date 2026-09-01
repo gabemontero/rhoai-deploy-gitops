@@ -1,6 +1,33 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LLAMASTACK_OPENAI_ENV="${SCRIPT_DIR}/usecases/services/llamastack/manifests/openai-credentials/openai.env"
+ROSSOCTL_OPENAI_ENV="${SCRIPT_DIR}/usecases/services/rossoctl/manifests/llm-config/openai.env"
+
+read -r -p "Update both openai.env files from OPENAI_API_KEY? [y/N] " REPLY
+if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+  if [ -z "${OPENAI_API_KEY:-}" ]; then
+    echo "Error: OPENAI_API_KEY is not set; cannot update the openai.env files."
+    exit 1
+  fi
+  printf 'api-key=%s\n' "$OPENAI_API_KEY" > "$LLAMASTACK_OPENAI_ENV"
+  printf 'apikey=%s\n' "$OPENAI_API_KEY" > "$ROSSOCTL_OPENAI_ENV"
+  echo "Updated both gitignored openai.env files."
+else
+  echo "Leaving both openai.env files unchanged."
+fi
+
+if [ ! -f "$LLAMASTACK_OPENAI_ENV" ]; then
+  echo "Error: $LLAMASTACK_OPENAI_ENV not found."
+  exit 1
+fi
+IFS='=' read -r openai_key_name deployment_openai_api_key < "$LLAMASTACK_OPENAI_ENV"
+if [ "$openai_key_name" != "api-key" ] || [ -z "$deployment_openai_api_key" ] || [ "$deployment_openai_api_key" = "CHANGE_ME" ]; then
+  echo "Error: $LLAMASTACK_OPENAI_ENV must contain a non-placeholder api-key value."
+  exit 1
+fi
+
 # This script is for deploying OGX to the dev cluster (redhat-ai-dev)
 # which already has RHOAI 3.4.3 installed with other components enabled.
 # It patches the DataScienceCluster to add OGX without disrupting existing components.
@@ -137,17 +164,6 @@ fi
 echo ""
 echo "=== Phase 3: LlamaStack/OGX instance (pointed at OpenAI) ==="
 
-if [ -z "${OPENAI_API_KEY:-}" ]; then
-  echo "Error: OPENAI_API_KEY environment variable is not set."
-  echo "  Set it in your shell (e.g. in ~/.bashrc) and re-run."
-  exit 1
-fi
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OPENAI_ENV="${SCRIPT_DIR}/usecases/services/llamastack/manifests/openai-credentials/openai.env"
-echo "api-key=${OPENAI_API_KEY}" > "$OPENAI_ENV"
-echo "Populated openai.env from \$OPENAI_API_KEY."
-
 oc apply -k usecases/services/llamastack/profiles/openai-only/
 
 echo ""
@@ -156,7 +172,7 @@ oc wait --for=condition=complete job/patch-openai-credentials -n llamastack --ti
 
 echo "Ensuring llama-stack-secret has OPENAI_API_KEY, VLLM_API_TOKEN, and correct INFERENCE_MODEL..."
 oc patch secret llama-stack-secret -n llamastack \
-  -p "{\"stringData\":{\"OPENAI_API_KEY\":\"${OPENAI_API_KEY}\",\"VLLM_API_TOKEN\":\"${OPENAI_API_KEY}\",\"VLLM_EMBEDDING_API_TOKEN\":\"${OPENAI_API_KEY}\",\"INFERENCE_MODEL\":\"openai/vllm-inference/gpt-4.1\"}}"
+  -p "{\"stringData\":{\"OPENAI_API_KEY\":\"${deployment_openai_api_key}\",\"VLLM_API_TOKEN\":\"${deployment_openai_api_key}\",\"VLLM_EMBEDDING_API_TOKEN\":\"${deployment_openai_api_key}\",\"INFERENCE_MODEL\":\"openai/vllm-inference/gpt-4.1\"}}"
 
 echo ""
 echo "Waiting for LlamaStack deployment to be available..."
@@ -207,4 +223,3 @@ echo "=== RHOAI + LlamaStack deployment complete ==="
 ROUTE_HOST=$(oc get route "$route_name" -n llamastack -o jsonpath='{.spec.host}')
 echo "LlamaStack route: https://${ROUTE_HOST}"
 echo "In-cluster URL:   http://${svc_name:-llamastack-service}.llamastack.svc.cluster.local:8321"
-
