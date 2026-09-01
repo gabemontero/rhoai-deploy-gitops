@@ -29,7 +29,7 @@ if [ "$openai_key_name" != "api-key" ] || [ -z "$deployment_openai_api_key" ] ||
 fi
 
 # This script is for deploying OGX to the dev cluster (redhat-ai-dev)
-# which already has RHOAI 3.4.3 installed with other components enabled.
+# which already has RHOAI installed with other components enabled.
 # It patches the DataScienceCluster to add OGX without disrupting existing components.
 #
 # NOTE: This script skips cert-manager and jobset operators because:
@@ -67,10 +67,10 @@ for ns in redhat-ods-operator openshift-operators; do
   fi
 done
 
-read -p "Do you want to upgrade RHOAI to beta channel (3.5.0-ea.2)? [y/N] " -n 1 -r
+read -p "Do you want to install or upgrade RHOAI on stable-3.x to 3.5.0? [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo "Upgrading RHOAI operator to beta channel..."
+  echo "Installing or upgrading RHOAI operator to 3.5.0 on stable-3.x..."
   echo "(Skipping cert-manager and jobset — not needed for Headless KServe + OGX-only deployment)"
   oc apply -k components/operators/rhoai-operator/
 
@@ -79,7 +79,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   while true; do
     rhods_csv=""
     for ns in redhat-ods-operator openshift-operators; do
-      csv=$(oc get csv -n "$ns" --no-headers 2>/dev/null | grep rhods || true)
+      csv=$(oc get csv -n "$ns" --no-headers 2>/dev/null | awk '$1 == "rhods-operator.3.5.0" {print; exit}')
       if [ -n "$csv" ]; then
         rhods_csv="$csv"
         break
